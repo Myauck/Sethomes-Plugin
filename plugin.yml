@@ -1,0 +1,9 @@
+name: SetHomes
+main: fr.leogaillet.plugin.sethomes.Main
+author: Myauck
+version: 1.0.0-SNAPSHOT
+
+commands:
+  sethome:
+  delhome:
+  homes:
