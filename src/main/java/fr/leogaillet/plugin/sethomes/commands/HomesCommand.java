@@ -1,18 +1,20 @@
 package fr.leogaillet.plugin.sethomes.commands;
 
 import fr.leogaillet.plugin.sethomes.managers.HomeManager;
-import fr.leogaillet.plugin.sethomes.managers.PlayerManager;
-import fr.leogaillet.plugin.sethomes.records.Home;
+import org.bukkit.ChatColor;
+import org.bukkit.Location;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
+import org.bukkit.command.PluginCommand;
 import org.bukkit.entity.Player;
 
-import java.util.List;
+import java.util.Map;
 
-public class HomesCommand extends AbstractHomeCommand {
+public class HomesCommand extends AbstractCommand {
 
-    public HomesCommand(PlayerManager playerManager) {
-        super(playerManager);
+    public HomesCommand(PluginCommand pluginCommand) {
+        super(pluginCommand);
+        setUsage("");
     }
 
     public boolean onCommand(CommandSender commandSender, Command command, String s, String[] args) {
@@ -20,41 +22,39 @@ public class HomesCommand extends AbstractHomeCommand {
         if (command.getName().equalsIgnoreCase("homes")) {
 
             if (!(commandSender instanceof Player)) {
-                commandSender.sendMessage("Vous devez être un joueur !");
-                return false;
-            }
-
-            if (args.length == 0) {
-
-                Player player = (Player) commandSender;
-                HomeManager manager = getPlayerManager().getHomeManager(player.getUniqueId());
-
-                List<Home> homes = manager.listHomes(false);
-
-                if (homes.isEmpty()) {
-                    player.sendMessage("Vous n'avez encore aucune location d'enregistrée !");
-                    return false;
-                }
-
-                StringBuilder stringBuilder = new StringBuilder();
-                int i = 1;
-                for (Home home : homes) {
-                    stringBuilder.append(home.getName());
-                    if (i != homes.size())
-                        stringBuilder.append(", ");
-                    i++;
-                }
-                player.sendMessage("Vous avez les locations suivantes : ");
-                player.sendMessage(stringBuilder.toString().trim());
-
+                commandSender.sendMessage(ChatColor.RED+"Vous devez être un joueur !");
                 return true;
+            }
 
-            } else {
-
-                commandSender.sendMessage("Usage : /homes");
+            if (args.length != 0)
                 return false;
 
+            Player player = (Player) commandSender;
+            HomeManager homeManager = HomeManager.getInstance(player.getUniqueId());
+
+            Map<String, Location> homes = homeManager.getHomeMap();
+
+            if (homes.isEmpty()) {
+                player.sendMessage(ChatColor.RED+"Vous n'avez encore aucune location d'enregistrée !");
+                return true;
             }
+
+            StringBuilder stringBuilder = new StringBuilder();
+            int i = 1;
+            for (String homeName : homes.keySet()) {
+                stringBuilder.append(ChatColor.DARK_GREEN);
+                stringBuilder.append(homeName);
+                if (i != homes.size()) {
+                    stringBuilder.append(ChatColor.GOLD);
+                    stringBuilder.append(", ");
+                }
+                i++;
+            }
+
+            player.sendMessage(ChatColor.GOLD+"Vous avez pouvez accédez aux locations suivantes : ");
+            player.sendMessage(stringBuilder.toString().trim());
+
+            return true;
 
         }
 

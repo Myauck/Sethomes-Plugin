@@ -4,59 +4,60 @@ import fr.leogaillet.plugin.sethomes.commands.DelHomeCommand;
 import fr.leogaillet.plugin.sethomes.commands.HomeCommand;
 import fr.leogaillet.plugin.sethomes.commands.HomesCommand;
 import fr.leogaillet.plugin.sethomes.commands.SetHomeCommand;
+import fr.leogaillet.plugin.sethomes.events.HomePlayerJoinEvent;
+import fr.leogaillet.plugin.sethomes.events.HomePlayerQuitEvent;
 import fr.leogaillet.plugin.sethomes.listeners.PlayerJoinListener;
 import fr.leogaillet.plugin.sethomes.listeners.PlayerQuitListener;
-import fr.leogaillet.plugin.sethomes.managers.PlayerManager;
+import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
-
-import java.io.File;
-import java.io.IOException;
 
 public class Main extends JavaPlugin {
 
-    private PlayerManager playerManager;
-
     @Override
     public void onEnable() {
+        super.onEnable();
+
+        if(!getDataFolder().exists())
+            getDataFolder().mkdirs();
+
         this.getLogger().info("Enabling Sethomes Plugin");
 
         initManagers();
         initCommands();
         initListeners();
 
-        super.onEnable();
+        for(Player player : Bukkit.getServer().getOnlinePlayers()) {
+            new HomePlayerJoinEvent(getDataFolder(), player);
+        }
     }
 
     private void initCommands() {
-        this.getCommand("sethome").setExecutor(new SetHomeCommand(playerManager));
-        this.getCommand("delhome").setExecutor(new DelHomeCommand(playerManager));
-        this.getCommand("homes").setExecutor(new HomesCommand(playerManager));
-        this.getCommand("home").setExecutor(new HomeCommand(playerManager));
+        new SetHomeCommand(getCommand("sethome"));
+        new DelHomeCommand(getCommand("delhome"));
+        new HomesCommand(getCommand("homes"));
+        new HomeCommand(getCommand("home"));
     }
 
     private void initListeners() {
-        this.getServer().getPluginManager().registerEvents(new PlayerJoinListener(playerManager), this);
-        this.getServer().getPluginManager().registerEvents(new PlayerQuitListener(playerManager), this);
+        this.getServer().getPluginManager().registerEvents(new PlayerJoinListener(getDataFolder()), this);
+        this.getServer().getPluginManager().registerEvents(new PlayerQuitListener(), this);
     }
 
     private void initManagers() {
-        File fileManager = new File(getDataFolder() + File.pathSeparator + "filemanager.yml");
-        if(!fileManager.exists()) {
-            try {
-                fileManager.createNewFile();
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        }
 
-        playerManager = new PlayerManager(fileManager);
+        if(!getDataFolder().exists())
+            getDataFolder().mkdir();
 
-        playerManager.createStorageFolder();
     }
 
     @Override
     public void onDisable() {
         super.onDisable();
+
+        for(Player player : Bukkit.getServer().getOnlinePlayers()) {
+            new HomePlayerQuitEvent(player);
+        }
     }
 
 }

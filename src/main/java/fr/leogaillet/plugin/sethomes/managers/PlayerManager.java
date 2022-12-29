@@ -1,83 +1,79 @@
 package fr.leogaillet.plugin.sethomes.managers;
 
+import org.bukkit.Location;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.entity.Player;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
 public class PlayerManager {
 
-    private final String STORAGE_FOLDER = "Homes";
-    private final File file;
-    private YamlConfiguration yamlConfiguration;
+    private static final HashMap<UUID, PlayerManager> instances = new HashMap<UUID, PlayerManager>();
+    private final File playerFile;
+    private final Player player;
+    private final HomeManager homeManager;
 
-    private final HashMap<UUID, HomeManager> homeManagerHashMap = new HashMap<UUID, HomeManager>();
-
-    public PlayerManager(final File file) {
-        this.file = file;
-
+    public PlayerManager(File playerFile, Player player) {
+        this.playerFile = playerFile;
+        this.player = player;
+        this.homeManager = new HomeManager(player);
+        createIfNotExists();
     }
 
-    public void createStorageFolder() {
-        File folder = new File(file.getParentFile() + File.pathSeparator + STORAGE_FOLDER);
-        if(!folder.exists()) {
-            folder.mkdirs();
+    public void registerPlayer() {
+        instances.put(player.getUniqueId(), this);
+    }
+
+    public void unregisterPlayer() {
+        instances.remove(player.getUniqueId());
+    }
+
+    public static PlayerManager getInstance(UUID playerUUID) {
+        return instances.get(playerUUID);
+    }
+
+    public void saveConfiguration() {
+        YamlConfiguration configuration = new YamlConfiguration();
+        for (Map.Entry<String, Location> home : homeManager.getHomeMap().entrySet()) {
+            configuration.set("homes."+home.getKey(), home.getValue());
+        }
+        try {
+            configuration.save(playerFile);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
     }
 
-    public File getFile() {
-        return file;
-    }
-    private void addHomeManager(UUID pUuid, String uuid) {
-        HomeManager pHM = new HomeManager(pUuid, new File(
-                file.getParentFile() + File.pathSeparator + STORAGE_FOLDER + File.pathSeparator + uuid + ".yml"
-        ));
-        homeManagerHashMap.put(pUuid, pHM);
-    }
-
-
     public void loadConfiguration() {
-        yamlConfiguration = new YamlConfiguration();
+        YamlConfiguration configuration = new YamlConfiguration();
         try {
-            yamlConfiguration.load(file);
+            configuration.load(playerFile);
         } catch (IOException e) {
             throw new RuntimeException(e);
         } catch (InvalidConfigurationException e) {
             throw new RuntimeException(e);
         }
 
-        List<String> uuidList = yamlConfiguration.getStringList("files");
-        for (String uuid : uuidList) {
-            UUID pUUID = UUID.fromString(uuid);
-            addHomeManager(pUUID, uuid);
+        ConfigurationSection configurationSection = configuration.getConfigurationSection("homes");
+        if(configurationSection != null) {
+            for(String homeName : configurationSection.getKeys(false)) {
+                homeManager.addHome(homeName, configuration.getLocation("homes."+homeName));
+            }
         }
     }
 
-    public void saveConfiguration() {
-        try {
-            yamlConfiguration.save(file);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+    private void createIfNotExists() {
+        if(!playerFile.exists()) {
+            try {
+                playerFile.createNewFile();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
         }
-    }
-
-    public boolean isUUIDKnown(UUID uuid) {
-        return homeManagerHashMap.containsKey(uuid);
-    }
-
-    public void createHomeManager(UUID uuid) {
-        List<String> uuids = yamlConfiguration.getStringList("files");
-        uuids.add(uuid.toString());
-        yamlConfiguration.set("files", uuids);
-        addHomeManager(uuid, uuid.toString());
-    }
-
-    public HomeManager getHomeManager(UUID uuid) {
-        return homeManagerHashMap.get(uuid);
     }
 
 }

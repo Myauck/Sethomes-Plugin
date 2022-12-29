@@ -1,15 +1,17 @@
 package fr.leogaillet.plugin.sethomes.commands;
 
 import fr.leogaillet.plugin.sethomes.managers.HomeManager;
-import fr.leogaillet.plugin.sethomes.managers.PlayerManager;
+import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
+import org.bukkit.command.PluginCommand;
 import org.bukkit.entity.Player;
 
-public class SetHomeCommand extends AbstractHomeCommand {
+public class SetHomeCommand extends AbstractCommand {
 
-    public SetHomeCommand(PlayerManager playerManager) {
-        super(playerManager);
+    public SetHomeCommand(PluginCommand pluginCommand) {
+        super(pluginCommand);
+        setUsage("<name>");
     }
 
     public boolean onCommand(CommandSender commandSender, Command command, String s, String[] args) {
@@ -17,43 +19,36 @@ public class SetHomeCommand extends AbstractHomeCommand {
         if(command.getName().equalsIgnoreCase("sethome")) {
 
             if(!(commandSender instanceof Player)) {
-                commandSender.sendMessage("Vous devez être un joueur !");
-                return false;
-            }
-
-            if(args.length == 1) {
-
-                Player player = (Player) commandSender;
-                HomeManager manager = getPlayerManager().getHomeManager(player.getUniqueId());
-
-                String name = args[0].toLowerCase();
-                if(manager.isHomeExists(name)) {
-                    player.sendMessage("Vous avez déjà une location qui porte ce nom !");
-                    return false;
-                }
-
-                boolean added = manager.addHome(name, player.getLocation());
-                if(!added) {
-                    player.sendMessage("Une erreur est survenue, vous ne pouvez pas créer un home");
-                    return false;
-                }
-
-                manager.saveConfiguration();
-                player.sendMessage("Votre home a été créé sous le nom de '"+name+"' !");
+                commandSender.sendMessage(ChatColor.RED+"Vous devez être un joueur !");
                 return true;
-
             }
 
-            else {
-
-                commandSender.sendMessage("Usage : /sethome <name>");
+            if(args.length != 1)
                 return false;
 
+            Player player = (Player) commandSender;
+            HomeManager homeManager = HomeManager.getInstance(player.getUniqueId());
+
+            String name = args[0].toLowerCase();
+            if(homeManager.exists(name)) {
+                player.sendMessage(ChatColor.RED+"Vous avez déjà une location nommée "+ChatColor.GRAY+name+ChatColor.RED+" !");
+                return true;
             }
+
+            homeManager.addHome(name, player.getLocation());
+
+            if(!homeManager.exists(name)) {
+                player.sendMessage(ChatColor.RED+"Une erreur est survenue, vous ne pouvez pas créer la location !");
+                return true;
+            }
+
+            player.sendMessage(ChatColor.DARK_GREEN+"Votre location "+ChatColor.GREEN+name+ChatColor.DARK_GREEN+" a été créée !");
+            return true;
 
         }
 
         return false;
+
     }
 
 }
