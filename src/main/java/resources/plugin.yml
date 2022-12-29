@@ -1,0 +1,22 @@
+name: SetHomes
+main: fr.leogaillet.plugin.sethomes.Main
+author: Myauck
+version: 1.0.0-SNAPSHOT
+
+commands:
+  sethome:
+    usage: "Usage: /sethome <name>"
+    description: "Permet d'enregistrer une nouvelle location"
+    aliases: ["addhome", "newhome"]
+  delhome:
+    usage: "Usage: /delhome <name>"
+    description: "Permet de supprimer une location déjà enregistrée"
+    aliases: ["remhome", "rmhome", "deletehome", "removehome"]
+  homes:
+    usage: "Usage: /homes"
+    description: "Permet de lister toutes les location enregistrées"
+    aliases: ["listhomes", "listhome"]
+  home:
+    usage: "Usage: /home <name>"
+    description: "Permet de se téléporter à une localisation enregistrée"
+    aliases: ["goto"]

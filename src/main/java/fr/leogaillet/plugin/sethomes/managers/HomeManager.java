@@ -2,6 +2,7 @@ package fr.leogaillet.plugin.sethomes.managers;
 
 import fr.leogaillet.plugin.sethomes.records.Home;
 import org.bukkit.Location;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
 
@@ -10,88 +11,118 @@ import java.io.IOException;
 import java.util.*;
 
 public class HomeManager {
-
-    private int limitOfHomes;
     private final File file;
     private YamlConfiguration configuration;
-    private final UUID playerUUID;
-    private final HashMap<String, UUID> homeHashMap = new HashMap<String, UUID>();
-    private final HashMap<UUID, Home> uuidHomeHashMap = new HashMap<UUID, Home>();
+    private ConfigurationSection visibleHomesSection, registeredHomeSection;
+    private final HashMap<String, UUID> visibleHomes = new HashMap<String, UUID>();
+    private final HashMap<UUID, Home> registeredHomes = new HashMap<UUID, Home>();
 
-    private static final HashMap<UUID, HomeManager> homeManagerHashMap = new HashMap<UUID, HomeManager>();
-
-    public HomeManager(UUID playerUUID, File file) {
-        homeManagerHashMap.put(playerUUID, this);
-        this.playerUUID = playerUUID;
+    public HomeManager(File file) {
         this.file = file;
+
+        if(!this.file.exists()) {
+            try {
+                this.file.createNewFile();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            createConfiguration();
+        }
+
     }
 
-    public static HomeManager getFromPlayerUUID(UUID playerUUID) {
-        return homeManagerHashMap.get(playerUUID);
-    }
-
-    public UUID getPlayerUUID() {
-        return this.playerUUID;
+    private void createConfiguration() {
+        this.configuration = new YamlConfiguration();
+        this.configuration.set("visible", new HashMap<String, String>());
+        this.visibleHomesSection = this.configuration.getConfigurationSection("visible");
+        this.configuration.set("registered", new HashMap<String, Home>());
+        this.registeredHomeSection = this.configuration.getConfigurationSection("registered");
+        saveConfiguration();
     }
 
     public void loadConfiguration() throws IOException, InvalidConfigurationException {
         this.configuration = new YamlConfiguration();
         this.configuration.load(this.file);
 
-        for(String name : (List<String>) configuration.getList("storage")) {
+        this.visibleHomesSection = this.configuration.getConfigurationSection("visible");
+        this.registeredHomeSection = this.configuration.getConfigurationSection("registered");
 
+        for (Map.Entry<String, Object> e : visibleHomesSection.getValues(false).entrySet()) {
+            String key = e.getKey();
+            String value = (String) e.getValue();
+            visibleHomes.put(key, UUID.fromString(value));
+        }
+
+        for (Map.Entry<String, Object> e : registeredHomeSection.getValues(false).entrySet()) {
+            UUID uuid = UUID.fromString(e.getKey());
+            ConfigurationSection home = (ConfigurationSection) e.getValue();
+            Location location = home.getLocation("location");
+            String name = home.getString("name");
+            registeredHomes.put(uuid, new Home(uuid, name, location));
         }
 
     }
 
-    public void saveConfiguration() throws IOException {
-        this.configuration.save(this.file);
+    public void saveConfiguration() {
+        this.configuration.set("visible", this.visibleHomesSection);
+        this.configuration.set("registered", this.registeredHomeSection);
+        try {
+            this.configuration.save(this.file);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public boolean isHomeExists(final String name) {
-        return homeHashMap.containsKey(name);
+        return visibleHomes.containsKey(name);
     }
 
-    public boolean isHomeExists(final UUID uuid) {
-        return uuidHomeHashMap.containsKey(uuid);
-    }
-
-    public HashMap<String, UUID> getHomeMap() {
-        return homeHashMap;
+    public HashMap<String, Home> getVisibleHomes() {
+        HashMap<String, Home> map = new HashMap<String, Home>();
+        for (Map.Entry<String, UUID> homeMap : visibleHomes.entrySet()) {
+            map.put(homeMap.getKey(), registeredHomes.get(homeMap.getValue()));
+        }
+        return map;
     }
 
     public List<Home> listHomes(boolean showHidden) {
         List<Home> homes = new ArrayList<Home>();
-        for (Home home : uuidHomeHashMap.values()) {
-            if (homeHashMap.containsValue(home.getUUID()) || showHidden)
+        for (Home home : registeredHomes.values()) {
+            if (visibleHomes.containsValue(home.getUUID()) || showHidden)
                 homes.add(home);
         }
         return homes;
-    }
-
-    public void loadHome(final UUID uuid) {
-        Location location = configuration.getLocation("storage." + uuid.toString() + ".location");
-        String name = configuration.getString("storage." + uuid.toString() + ".name");
-
-        Home home = new Home(uuid, name, location);
-        this.homeHashMap.put(name, uuid);
     }
 
     public boolean addHome(final String name, final Location location) {
         if(isHomeExists(name)) return false;
 
         Home home = new Home(name, location);
-        configuration.set("storage." + home.getUUID(), home);
-        this.homeHashMap.put(name, home.getUUID());
+
+        this.visibleHomes.put(name, home.getUUID());
+        visibleHomesSection.set(home.getName(), home.getUUID().toString());
+
+        this.registeredHomes.put(home.getUUID(), home);
+        registeredHomeSection.set(home.getUUID().toString(), home);
+
         return true;
     }
 
-    public void removeHome(final String name) {
-        this.homeHashMap.remove(name);
+    public boolean removeHome(final String name) {
+        if(!isHomeExists(name)) return false;
+
+        this.visibleHomes.remove(name);
+        visibleHomesSection.set(getHome(name).getUUID().toString(), null);
+
+        return true;
     }
 
-    public Home getHomeFromName(final String name) {
-        return this.;
+    public Home getHome(final UUID uuid) {
+        return this.registeredHomes.get(uuid);
+    }
+
+    public Home getHome(final String name) {
+        return getHome(visibleHomes.get(name));
     }
 
 }

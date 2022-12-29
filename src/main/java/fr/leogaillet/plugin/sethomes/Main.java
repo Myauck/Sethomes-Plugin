@@ -1,5 +1,10 @@
 package fr.leogaillet.plugin.sethomes;
 
+import fr.leogaillet.plugin.sethomes.commands.DelHomeCommand;
+import fr.leogaillet.plugin.sethomes.commands.HomeCommand;
+import fr.leogaillet.plugin.sethomes.commands.HomesCommand;
+import fr.leogaillet.plugin.sethomes.commands.SetHomeCommand;
+import fr.leogaillet.plugin.sethomes.listeners.PlayerJoinListener;
 import fr.leogaillet.plugin.sethomes.listeners.PlayerQuitListener;
 import fr.leogaillet.plugin.sethomes.managers.PlayerManager;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -23,10 +28,15 @@ public class Main extends JavaPlugin {
     }
 
     private void initCommands() {
+        this.getCommand("sethome").setExecutor(new SetHomeCommand(playerManager));
+        this.getCommand("delhome").setExecutor(new DelHomeCommand(playerManager));
+        this.getCommand("homes").setExecutor(new HomesCommand(playerManager));
+        this.getCommand("home").setExecutor(new HomeCommand(playerManager));
     }
 
     private void initListeners() {
-        this.getServer().getPluginManager().registerEvents(new PlayerQuitListener(), this);
+        this.getServer().getPluginManager().registerEvents(new PlayerJoinListener(playerManager), this);
+        this.getServer().getPluginManager().registerEvents(new PlayerQuitListener(playerManager), this);
     }
 
     private void initManagers() {
@@ -42,10 +52,6 @@ public class Main extends JavaPlugin {
         playerManager = new PlayerManager(fileManager);
 
         playerManager.createStorageFolder();
-    }
-
-    public PlayerManager getPlayerManager() {
-        return playerManager;
     }
 
     @Override
